@@ -29,6 +29,9 @@ class ChartRenderMCPServer {
       fs.mkdirSync(this.imagesDir, { recursive: true });
     }
 
+    // 初始化端口号变量
+    this.port = null;
+
     // 设置错误处理
     this.setupErrorHandling();
     this.setupHandlers();
@@ -440,6 +443,9 @@ class ChartRenderMCPServer {
 
       this.logInfo(`${chartType}图表渲染成功，文件保存至: ${outputPath}`);
 
+      // 构建HTTP URL
+      const imageUrl = `http://localhost:${this.port}/images/${filename}`;
+
       return {
         content: [
           {
@@ -457,6 +463,10 @@ class ChartRenderMCPServer {
           {
             type: 'text',
             text: `文件大小: ${Math.round(buffer.length / 1024)}KB`,
+          },
+          {
+            type: 'text',
+            text: `图片访问URL: ${imageUrl}`,
           },
           {
             type: 'text',
@@ -482,6 +492,9 @@ class ChartRenderMCPServer {
   async createSSEServer() {
     const app = express();
     app.use(express.json());
+
+    // 添加静态文件服务中间件，提供图片访问URL
+    app.use('/images', express.static(this.imagesDir));
 
     // SSE endpoint - 建立SSE连接
     app.get('/sse', async (req, res) => {
@@ -577,11 +590,12 @@ class ChartRenderMCPServer {
 
   async run() {
     const port = process.env.PORT || 3001;
+    this.port = port; // 将端口号保存到实例变量
     
     try {
       const app = await this.createSSEServer();
-      
-      app.listen(port, () => {
+
+app.listen(port, () => {
         this.logInfo(`MCP Chart Render SSE服务器已启动`);
         this.logInfo(`- 端口: ${port}`);
         this.logInfo(`- SSE端点: http://localhost:${port}/sse`);
