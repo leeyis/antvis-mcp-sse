@@ -1,0 +1,21 @@
+{
+  "name": "chart-render",
+  "version": "1.0.0",
+  "description": "MCP Chart render - SSE Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ikart",
+  "license": "ISC",
+  "dependencies": {
+    "@antv/gpt-vis-ssr": "^0.1.6",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "eventsource": "^3.0.7",
+    "node-fetch": "^3.3.2"
+  }
+}
