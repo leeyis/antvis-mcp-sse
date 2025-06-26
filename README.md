@@ -26,11 +26,15 @@ cd antvis-mcp-sse
 # 将 HOST=192.168.10.187 改为您的实际IP地址
 
 # 3. 构建并启动服务
-docker build -t antvis-chart-sse:latest .
+docker build -t antvis-mcp-sse:latest .
 docker compose up -d
 
 # 4. 验证服务
-curl http://YOUR_IP:7001/health
+# HTTPS访问（推荐）
+curl -k https://YOUR_IP/health
+
+# 或HTTP访问
+curl http://YOUR_IP/health
 ```
 
 ### 本地开发
@@ -40,8 +44,11 @@ curl http://YOUR_IP:7001/health
 npm install
 
 # 2. 设置环境变量并启动
-export HOST=YOUR_IP  # 替换为您的实际IP
-export PORT=7001
+export HOST=YOUR_IP        # 替换为您的实际IP
+export HTTP_PORT=80        # HTTP端口
+export HTTPS_PORT=443      # HTTPS端口
+export ENABLE_HTTPS=true   # 启用HTTPS
+export ENABLE_HTTP=true    # 启用HTTP
 npm start
 ```
 
@@ -82,13 +89,65 @@ npm start
 
 ```yaml
 environment:
-  - PORT=7001                    # 服务端口
-  - ENDPOINT=/message            # SSE端点路径
+  - HTTP_PORT=80                 # HTTP服务端口
+  - HTTPS_PORT=443               # HTTPS服务端口
+  - ENDPOINT=/message            # SSE端点路径  
   - NODE_ENV=production          # 运行环境
-  - HOST=192.168.10.187         # 外部访问主机（修改为您的IP）
-  - LOG_LEVEL=info              # 日志级别
-  - IMAGES_DIR=/app/images      # 图片存储目录
+  - HOST=192.168.10.187         # 外部访问主机（修改为您的实际IP）
+  - ENABLE_HTTPS=true           # 启用HTTPS服务器
+  - ENABLE_HTTP=true            # 启用HTTP服务器
+  - LOG_LEVEL=info              # 日志级别（可选：debug, info, warn, error）
+  - IMAGES_DIR=/app/images      # 容器内图片存储目录
   - MAX_IMAGE_SIZE=10           # 最大图片大小限制(MB)
+  # SSL证书配置（可选）
+  # - SSL_KEY_PATH=/app/ssl/external.key
+  # - SSL_CERT_PATH=/app/ssl/external.crt
+```
+
+### 🔒 HTTPS完整支持
+
+**双端口监听：**
+- **HTTP端口**：80（可配置）
+- **HTTPS端口**：443（可配置） 
+- **自动SSL证书**：支持自签名证书生成
+- **外部证书**：支持挂载外部SSL证书
+
+**服务器配置选项：**
+
+1. **双协议模式（推荐）**：
+```yaml
+# 同时支持HTTP和HTTPS访问
+environment:
+  - ENABLE_HTTP=true
+  - ENABLE_HTTPS=true
+  - HOST=your-domain.com
+```
+
+2. **仅HTTPS模式**：
+```yaml
+# 仅启用HTTPS，更安全
+environment:
+  - ENABLE_HTTP=false
+  - ENABLE_HTTPS=true
+```
+
+3. **仅HTTP模式**：
+```yaml
+# 仅启用HTTP，适合内网或开发环境
+environment:
+  - ENABLE_HTTP=true
+  - ENABLE_HTTPS=false
+```
+
+4. **外部SSL证书**：
+```yaml
+# 使用自己的SSL证书
+environment:
+  - ENABLE_HTTPS=true
+  - SSL_KEY_PATH=/app/ssl/your-domain.key
+  - SSL_CERT_PATH=/app/ssl/your-domain.crt
+volumes:
+  - ./ssl:/app/ssl
 ```
 
 ### 修改外部访问地址
@@ -148,10 +207,14 @@ antvis-mcp-sse/
   "success": true,
   "filename": "pie_chart_1234567890.png",
   "path": "/app/images/pie_chart_1234567890.png",
-  "url": "http://192.168.10.187:7001/images/pie_chart_1234567890.png",
+  "url": "https://192.168.10.187/images/pie_chart_1234567890.png",
   "timestamp": "2024-12-25T10:30:00.000Z"
 }
 ```
+
+**URL访问格式说明：**
+- **HTTPS（推荐）**: `https://YOUR_IP/images/图片名.png`
+- **HTTP**: `http://YOUR_IP/images/图片名.png`
 
 ### 高级双轴图
 
@@ -227,8 +290,13 @@ docker compose restart
 容器自带健康检查，访问 `/health` 端点：
 
 ```bash
-curl http://YOUR_IP:7001/health
-# 返回: {"status":"ok","timestamp":"2024-12-25T10:30:00.000Z"}
+# HTTPS访问（推荐）
+curl -k https://YOUR_IP/health
+
+# HTTP访问  
+curl http://YOUR_IP/health
+
+# 预期返回: {"status":"ok","timestamp":"2024-12-25T10:30:00.000Z"}
 ```
 
 ## 🛠️ 故障排除
@@ -241,7 +309,12 @@ curl http://YOUR_IP:7001/health
 docker compose exec antvis-mcp env | grep HOST
 
 # 确认防火墙端口开放
-sudo ufw allow 7001
+sudo ufw allow 80     # HTTP端口
+sudo ufw allow 443    # HTTPS端口
+
+# 验证服务状态
+curl -k https://YOUR_IP/health   # HTTPS
+curl http://YOUR_IP/health       # HTTP
 ```
 
 **2. 容器启动失败**
@@ -250,7 +323,11 @@ sudo ufw allow 7001
 docker compose logs antvis-mcp
 
 # 检查端口占用
-netstat -tulpn | grep 7001
+netstat -tulpn | grep 80      # HTTP端口
+netstat -tulpn | grep 443     # HTTPS端口
+
+# 检查容器状态
+docker compose ps
 ```
 
 **3. 图表渲染缓慢**
@@ -267,6 +344,41 @@ docker stats antvis-mcp
 # 这是正常现象，IDE会自动重连
 # 可通过日志级别控制详细程度
 # 在docker-compose.yml中设置: LOG_LEVEL=warn
+```
+
+**5. Docker Compose相关问题**
+```bash
+# 检查compose文件语法
+docker compose config
+
+# 验证compose文件并显示最终配置
+docker compose config --services
+
+# 重新构建并启动（强制重建）
+docker compose up -d --build
+
+# 完全清理并重启
+docker compose down -v
+docker compose up -d
+
+# 查看所有容器状态
+docker compose ps -a
+
+# 查看特定服务的详细信息
+docker compose logs antvis-mcp --tail 50
+```
+
+**6. 混合内容问题（HTTPS环境）**
+```bash
+# 问题现象：HTTPS页面无法加载HTTP图片
+# 解决方案1：使用相对协议URL（推荐）
+# 在浏览器控制台检查是否有混合内容错误
+
+# 解决方案2：配置HTTPS协议
+# 修改docker-compose.yml中的PROTOCOL=https
+
+# 验证协议配置
+docker compose exec antvis-mcp env | grep PROTOCOL
 ```
 
 ### 性能优化建议

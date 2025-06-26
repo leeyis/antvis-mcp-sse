@@ -15,7 +15,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 # 设置npm使用淘宝镜像源
 RUN npm config set registry https://registry.npmmirror.com/
 
-# 安装Canvas依赖包、编译工具和中文字体（@antv/gpt-vis-ssr需要）
+# 安装Canvas依赖包、编译工具、中文字体和OpenSSL（@antv/gpt-vis-ssr需要）
 RUN apk add --no-cache \
     cairo-dev \
     jpeg-dev \
@@ -28,6 +28,7 @@ RUN apk add --no-cache \
     python3 \
     font-wqy-zenhei \
     fontconfig \
+    openssl \
     && fc-cache -fv \
     && rm -rf /var/cache/apk/*
 
@@ -45,20 +46,19 @@ RUN unset HTTP_PROXY HTTPS_PROXY && \
 COPY server.js ./
 
 # 创建必要目录
-RUN mkdir -p images
+RUN mkdir -p images ssl
 
-# 创建非root用户（安全最佳实践）
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001 && \
-    chown -R nextjs:nodejs /app
-USER nextjs
+# 使用基础镜像中现有的node用户（UID/GID都是1000）
+RUN chown -R node:node /app
+USER node
 
-# 暴露端口
-EXPOSE 7001
+# 暴露HTTP和HTTPS端口
+EXPOSE 80 443
 
 # 设置环境变量
 ENV NODE_ENV=production \
-    PORT=7001 \
+    HTTP_PORT=80 \
+    HTTPS_PORT=443 \
     ENDPOINT=/message
 
 # 健康检查

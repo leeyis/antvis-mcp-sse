@@ -9,6 +9,8 @@ const fsSync = require('fs');
 const path = require('path');
 const express = require('express');
 const crypto = require('crypto');
+const https = require('https');
+const http = require('http');
 
 class ChartRenderMCPServer {
   constructor() {
@@ -466,9 +468,38 @@ class ChartRenderMCPServer {
       const totalTime = Date.now() - startTime;
       this.logInfo(`图表渲染完成 - 渲染:${renderTime}ms, 文件:${fileTime}ms, 总计:${totalTime}ms`);
 
-      // 构建HTTP URL（支持外部访问）
+      // 构建图片URL（智能协议选择：优先HTTPS，回退HTTP）
       const host = process.env.HOST || 'localhost';
-      const imageUrl = `http://${host}:${this.port}/images/${filename}`;
+      const enableHttps = process.env.ENABLE_HTTPS === 'true';
+      const enableHttp = process.env.ENABLE_HTTP !== 'false';
+      
+      // 获取端口配置
+      const httpPort = parseInt(process.env.HTTP_PORT) || 80;
+      const httpsPort = parseInt(process.env.HTTPS_PORT) || 443;
+      
+      // 智能选择协议（优先HTTPS）
+      const protocol = enableHttps ? 'https' : 'http';
+      const currentPort = protocol === 'https' ? httpsPort : httpPort;
+      
+      // 智能端口处理：标准端口不显示，非标准端口显示
+      let portStr = '';
+      if (protocol === 'https' && currentPort !== 443) {
+        portStr = `:${currentPort}`;
+      } else if (protocol === 'http' && currentPort !== 80) {
+        portStr = `:${currentPort}`;
+      }
+      
+      const imageUrl = `${protocol}://${host}${portStr}/images/${filename}`;
+      
+      // 添加调试日志
+      this.logInfo(`URL生成信息 - 协议:${protocol}(HTTPS:${enableHttps}), 主机:${host}, 端口:${currentPort}, 完整URL:${imageUrl}`);
+      
+      // 生成相对协议URL（自动匹配页面协议，解决混合内容问题）
+      const relativeProtocolUrl = `//${host}${portStr}/images/${filename}`;
+      
+      // 同时生成HTTP和HTTPS两种URL供备选使用
+      const httpUrl = `http://${host}${httpPort !== 80 ? `:${httpPort}` : ''}/images/${filename}`;
+      const httpsUrl = `https://${host}${httpsPort !== 443 ? `:${httpsPort}` : ''}/images/${filename}`;
 
       const result = {
         content: [
@@ -490,7 +521,19 @@ class ChartRenderMCPServer {
           },
           {
             type: 'text',
-            text: `图片访问URL: ${imageUrl}`,
+            text: `主要访问URL: ${imageUrl}`,
+          },
+          {
+            type: 'text',
+            text: `HTTPS访问URL: ${httpsUrl}`,
+          },
+          {
+            type: 'text',
+            text: `HTTP访问URL: ${httpUrl}`,
+          },
+          {
+            type: 'text',
+            text: `相对协议URL（推荐HTTPS环境）: ${relativeProtocolUrl}`,
           },
           {
             type: 'text',
@@ -508,7 +551,22 @@ class ChartRenderMCPServer {
         const firstKey = this.chartCache.keys().next().value;
         this.chartCache.delete(firstKey);
       }
-      this.chartCache.set(configHash, result);
+      
+      // 增强缓存信息，包含多种URL格式
+      const cacheData = {
+        ...result,
+        metadata: {
+          filename,
+          outputPath,
+          imageUrl,
+          relativeProtocolUrl,
+          fileSize: buffer.length,
+          renderTime: totalTime,
+          timestamp: Date.now()
+        }
+      };
+      
+      this.chartCache.set(configHash, cacheData);
 
       return result;
     } catch (error) {
@@ -633,23 +691,126 @@ class ChartRenderMCPServer {
   }
 
   async run() {
-    const port = process.env.PORT || 3001;
-    this.port = port; // 将端口号保存到实例变量
+    const httpPort = process.env.HTTP_PORT || 80;
+    const httpsPort = process.env.HTTPS_PORT || 443;
+    const enableHttps = process.env.ENABLE_HTTPS === 'true';
+    const enableHttp = process.env.ENABLE_HTTP !== 'false'; // 默认启用HTTP
+    
+    // 设置主端口（用于URL生成，优先HTTPS）
+    this.port = enableHttps ? httpsPort : httpPort;
     
     try {
       const app = await this.createSSEServer();
+      const servers = [];
 
-app.listen(port, () => {
-        this.logInfo(`MCP Chart Render SSE服务器已启动`);
-        this.logInfo(`- 端口: ${port}`);
-        this.logInfo(`- SSE端点: http://localhost:${port}/sse`);
-        this.logInfo(`- 消息端点: http://localhost:${port}/messages`);
-        this.logInfo(`- 健康检查: http://localhost:${port}/health`);
-      });
+      // 启动HTTP服务器
+      if (enableHttp) {
+        const httpServer = http.createServer(app);
+        httpServer.listen(httpPort, () => {
+          this.logInfo(`HTTP服务器已启动`);
+          this.logInfo(`- 端口: ${httpPort}`);
+          this.logInfo(`- SSE端点: http://localhost:${httpPort}/sse`);
+          this.logInfo(`- 消息端点: http://localhost:${httpPort}/messages`);
+          this.logInfo(`- 健康检查: http://localhost:${httpPort}/health`);
+        });
+        servers.push(httpServer);
+      }
+
+      // 启动HTTPS服务器
+      if (enableHttps) {
+        const sslConfig = await this.getSSLConfig();
+        if (sslConfig) {
+          const httpsServer = https.createServer(sslConfig, app);
+          httpsServer.listen(httpsPort, () => {
+            this.logInfo(`HTTPS服务器已启动`);
+            this.logInfo(`- 端口: ${httpsPort}`);
+            this.logInfo(`- SSE端点: https://localhost:${httpsPort}/sse`);
+            this.logInfo(`- 消息端点: https://localhost:${httpsPort}/messages`);
+            this.logInfo(`- 健康检查: https://localhost:${httpsPort}/health`);
+          });
+          servers.push(httpsServer);
+        } else {
+          this.logError('HTTPS启用失败', new Error('无法获取SSL证书配置'));
+        }
+      }
+
+      if (servers.length === 0) {
+        throw new Error('没有启动任何服务器');
+      }
+
+      this.logInfo(`MCP Chart Render SSE服务器启动完成`);
+      this.logInfo(`- HTTP${enableHttp ? '已启用' : '已禁用'}: ${httpPort}`);
+      this.logInfo(`- HTTPS${enableHttps ? '已启用' : '已禁用'}: ${httpsPort}`);
+      this.logInfo(`- 主协议: ${enableHttps ? 'HTTPS' : 'HTTP'}`);
+      
     } catch (error) {
       this.logError('服务器启动失败', error);
       throw error;
     }
+  }
+
+  // 生成自签名SSL证书（用于开发和内网环境）
+  async generateSelfSignedCert() {
+    const certDir = path.join(__dirname, 'ssl');
+    const keyPath = path.join(certDir, 'key.pem');
+    const certPath = path.join(certDir, 'cert.pem');
+    
+    // 检查证书是否已存在
+    if (fsSync.existsSync(keyPath) && fsSync.existsSync(certPath)) {
+      this.logInfo('SSL证书已存在，使用现有证书');
+      return { keyPath, certPath };
+    }
+    
+    // 创建ssl目录
+    if (!fsSync.existsSync(certDir)) {
+      fsSync.mkdirSync(certDir, { recursive: true });
+    }
+    
+    try {
+      // 使用openssl生成自签名证书
+      const { execSync } = require('child_process');
+      const host = process.env.HOST || 'localhost';
+      
+      // 生成私钥
+      execSync(`openssl genrsa -out ${keyPath} 2048`, { stdio: 'pipe' });
+      
+      // 生成证书
+      execSync(`openssl req -new -x509 -key ${keyPath} -out ${certPath} -days 365 -subj "/C=CN/ST=State/L=City/O=Organization/CN=${host}"`, { stdio: 'pipe' });
+      
+      this.logInfo('自签名SSL证书生成成功');
+      return { keyPath, certPath };
+    } catch (error) {
+      this.logError('SSL证书生成失败', error);
+      return null;
+    }
+  }
+
+  // 获取SSL证书配置
+  async getSSLConfig() {
+    // 优先使用外部提供的证书
+    const externalKeyPath = process.env.SSL_KEY_PATH;
+    const externalCertPath = process.env.SSL_CERT_PATH;
+    
+    if (externalKeyPath && externalCertPath && fsSync.existsSync(externalKeyPath) && fsSync.existsSync(externalCertPath)) {
+      this.logInfo('使用外部SSL证书');
+      return {
+        key: await fs.readFile(externalKeyPath),
+        cert: await fs.readFile(externalCertPath)
+      };
+    }
+    
+    // 如果启用HTTPS但没有外部证书，生成自签名证书
+    if (process.env.ENABLE_HTTPS === 'true') {
+      const certInfo = await this.generateSelfSignedCert();
+      if (certInfo) {
+        return {
+          key: await fs.readFile(certInfo.keyPath),
+          cert: await fs.readFile(certInfo.certPath)
+        };
+      }
+    }
+    
+    return null;
   }
 }
 
