@@ -1,4 +1,4 @@
-# MCP Chart Render - 专业图表渲染服务器
+# AntVis MCP SSE - 专业图表渲染服务器
 
 这是一个基于 Model Context Protocol (MCP) 的**专业图表渲染服务器**，支持 8 种图表类型，具备外部访问能力、性能优化和Docker容器化部署。
 
@@ -19,7 +19,7 @@
 ```bash
 # 1. 克隆项目
 git clone <repository-url>
-cd chart-render
+cd antvis-mcp-sse
 
 # 2. 修改外部访问IP（编辑docker-compose.yml中的HOST值）
 # 将 HOST=192.168.10.187 改为您的实际IP地址
@@ -98,7 +98,7 @@ environment:
 ## 📁 项目结构
 
 ```
-chart-render/
+antvis-mcp-sse/
 ├── server.js              # 主服务器代码
 ├── Dockerfile             # Docker构建配置
 ├── docker-compose.yml     # 容器编排配置
@@ -202,7 +202,7 @@ docker build --no-cache -t antvis-chart-sse:latest .
 docker compose up -d
 
 # 查看日志
-docker compose logs -f chart-render
+docker compose logs -f antvis-mcp
 
 # 停止服务
 docker compose down
@@ -227,7 +227,7 @@ curl http://YOUR_IP:7001/health
 **1. 图片URL无法访问**
 ```bash
 # 检查HOST环境变量设置
-docker compose exec chart-render env | grep HOST
+docker compose exec antvis-mcp env | grep HOST
 
 # 确认防火墙端口开放
 sudo ufw allow 7001
@@ -236,7 +236,7 @@ sudo ufw allow 7001
 **2. 容器启动失败**
 ```bash
 # 查看详细日志
-docker compose logs chart-render
+docker compose logs antvis-mcp
 
 # 检查端口占用
 netstat -tulpn | grep 7001
@@ -245,10 +245,10 @@ netstat -tulpn | grep 7001
 **3. 图表渲染缓慢**
 ```bash
 # 查看缓存命中率
-docker compose logs chart-render | grep "缓存"
+docker compose logs antvis-mcp | grep "缓存"
 
 # 监控容器资源
-docker stats chart-render
+docker stats antvis-mcp
 ```
 
 **4. SSE连接频繁断开**
@@ -320,11 +320,13 @@ docker stats chart-render
 
 ```bash
 # 完整部署流程
-git clone <repository-url> && cd chart-render
-# 编辑 docker-compose.yml 中的 HOST 为您的IP
+git clone <repository-url> && cd antvis-mcp-sse
+# 编辑 docker-compose.yml 中的 HOST 为您的实际IP地址
 docker build -t antvis-chart-sse:latest .
 docker compose up -d
+# 验证服务状态
 curl http://YOUR_IP:7001/health
+docker compose ps antvis-mcp
 ```
 
 🎉 现在您可以通过MCP客户端使用8个强大的图表渲染工具了！ 

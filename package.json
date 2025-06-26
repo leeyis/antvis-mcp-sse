@@ -1,7 +1,7 @@
 {
-  "name": "chart-render",
+  "name": "antvis-mcp-sse",
   "version": "1.0.0",
-  "description": "MCP Chart render - SSE Server",
+  "description": "AntVis MCP SSE Server - Professional Chart Rendering Service",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
