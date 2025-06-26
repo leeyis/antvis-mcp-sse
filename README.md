@@ -31,10 +31,10 @@ docker compose up -d
 
 # 4. 验证服务
 # HTTPS访问（推荐）
-curl -k https://YOUR_IP/health
+curl -k https://YOUR_IP:8443/health
 
 # 或HTTP访问
-curl http://YOUR_IP/health
+curl http://YOUR_IP:8000/health
 ```
 
 ### 本地开发
@@ -45,8 +45,8 @@ npm install
 
 # 2. 设置环境变量并启动
 export HOST=YOUR_IP        # 替换为您的实际IP
-export HTTP_PORT=80        # HTTP端口
-export HTTPS_PORT=443      # HTTPS端口
+export HTTP_PORT=8000      # HTTP端口
+export HTTPS_PORT=8443     # HTTPS端口
 export ENABLE_HTTPS=true   # 启用HTTPS
 export ENABLE_HTTP=true    # 启用HTTP
 npm start
@@ -89,8 +89,8 @@ npm start
 
 ```yaml
 environment:
-  - HTTP_PORT=80                 # HTTP服务端口
-  - HTTPS_PORT=443               # HTTPS服务端口
+  - HTTP_PORT=8000               # HTTP服务端口
+  - HTTPS_PORT=8443              # HTTPS服务端口
   - ENDPOINT=/message            # SSE端点路径  
   - NODE_ENV=production          # 运行环境
   - HOST=192.168.10.187         # 外部访问主机（修改为您的实际IP）
@@ -107,10 +107,15 @@ environment:
 ### 🔒 HTTPS完整支持
 
 **双端口监听：**
-- **HTTP端口**：80（可配置）
-- **HTTPS端口**：443（可配置） 
+- **HTTP端口**：8000（避免特权端口权限问题）
+- **HTTPS端口**：8443（避免特权端口权限问题） 
 - **自动SSL证书**：支持自签名证书生成
 - **外部证书**：支持挂载外部SSL证书
+
+**端口选择说明：**
+- 使用8000/8443端口避免需要root权限绑定80/443特权端口
+- 便于在开发和生产环境中灵活部署
+- 减少与系统服务的端口冲突
 
 **服务器配置选项：**
 
@@ -165,6 +170,23 @@ volumes:
 - HOST=your-domain.com
 ```
 
+### 🔗 MCP 连接配置
+
+配置MCP服务器时使用以下URL格式：
+
+```
+# HTTP连接（推荐）
+http://YOUR_IP:8000/sse
+
+# HTTPS连接
+https://YOUR_IP:8443/sse
+```
+
+**注意事项：**
+- 首次连接建议使用HTTP避免SSL证书问题
+- 确保防火墙已开放对应端口
+- HOST环境变量需与实际访问IP一致
+
 ## 📁 项目结构
 
 ```
@@ -204,17 +226,58 @@ antvis-mcp-sse/
 **返回示例：**
 ```json
 {
-  "success": true,
-  "filename": "pie_chart_1234567890.png",
-  "path": "/app/images/pie_chart_1234567890.png",
-  "url": "https://192.168.10.187/images/pie_chart_1234567890.png",
-  "timestamp": "2024-12-25T10:30:00.000Z"
+  "content": [
+    {
+      "type": "text",
+      "text": "pie图表渲染成功！"
+    },
+    {
+      "type": "text", 
+      "text": "文件大小: 110KB"
+    },
+    {
+      "type": "text",
+      "text": "渲染耗时: 1250ms"
+    },
+    {
+      "type": "text",
+      "text": "访问链接: http://192.168.10.187:8000/images/pie_chart_1234567890.png"
+    }
+  ]
+}
+```
+
+**双协议模式返回示例：**
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "pie图表渲染成功！"
+    },
+    {
+      "type": "text",
+      "text": "文件大小: 110KB"
+    },
+    {
+      "type": "text", 
+      "text": "渲染耗时: 1250ms"
+    },
+    {
+      "type": "text",
+      "text": "HTTPS访问: https://192.168.10.187:8443/images/pie_chart_1234567890.png"
+    },
+    {
+      "type": "text",
+      "text": "HTTP访问: http://192.168.10.187:8000/images/pie_chart_1234567890.png"
+    }
+  ]
 }
 ```
 
 **URL访问格式说明：**
-- **HTTPS（推荐）**: `https://YOUR_IP/images/图片名.png`
-- **HTTP**: `http://YOUR_IP/images/图片名.png`
+- **HTTPS（推荐）**: `https://YOUR_IP:8443/images/图片名.png`
+- **HTTP**: `http://YOUR_IP:8000/images/图片名.png`
 
 ### 高级双轴图
 
@@ -291,10 +354,10 @@ docker compose restart
 
 ```bash
 # HTTPS访问（推荐）
-curl -k https://YOUR_IP/health
+curl -k https://YOUR_IP:8443/health
 
 # HTTP访问  
-curl http://YOUR_IP/health
+curl http://YOUR_IP:8000/health
 
 # 预期返回: {"status":"ok","timestamp":"2024-12-25T10:30:00.000Z"}
 ```
@@ -309,12 +372,12 @@ curl http://YOUR_IP/health
 docker compose exec antvis-mcp env | grep HOST
 
 # 确认防火墙端口开放
-sudo ufw allow 80     # HTTP端口
-sudo ufw allow 443    # HTTPS端口
+sudo ufw allow 8000   # HTTP端口
+sudo ufw allow 8443   # HTTPS端口
 
 # 验证服务状态
-curl -k https://YOUR_IP/health   # HTTPS
-curl http://YOUR_IP/health       # HTTP
+curl -k https://YOUR_IP:8443/health   # HTTPS
+curl http://YOUR_IP:8000/health       # HTTP
 ```
 
 **2. 容器启动失败**
@@ -323,8 +386,8 @@ curl http://YOUR_IP/health       # HTTP
 docker compose logs antvis-mcp
 
 # 检查端口占用
-netstat -tulpn | grep 80      # HTTP端口
-netstat -tulpn | grep 443     # HTTPS端口
+netstat -tulpn | grep 8000    # HTTP端口
+netstat -tulpn | grep 8443    # HTTPS端口
 
 # 检查容器状态
 docker compose ps

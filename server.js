@@ -501,49 +501,49 @@ class ChartRenderMCPServer {
       const httpUrl = `http://${host}${httpPort !== 80 ? `:${httpPort}` : ''}/images/${filename}`;
       const httpsUrl = `https://${host}${httpsPort !== 443 ? `:${httpsPort}` : ''}/images/${filename}`;
 
+      // 构建简洁的返回结果
+      const content = [
+        {
+          type: 'text',
+          text: `${chartType}图表渲染成功！`,
+        },
+        {
+          type: 'text',
+          text: `文件大小: ${Math.round(buffer.length / 1024)}KB`,
+        },
+        {
+          type: 'text',
+          text: `渲染耗时: ${totalTime}ms`,
+        }
+      ];
+
+      // 根据环境变量配置添加对应的URL
+      if (enableHttps && enableHttp) {
+        // 双协议模式：返回两个URL
+        content.push({
+          type: 'text',
+          text: `HTTPS访问: ${httpsUrl}`,
+        });
+        content.push({
+          type: 'text',
+          text: `HTTP访问: ${httpUrl}`,
+        });
+      } else if (enableHttps) {
+        // 仅HTTPS模式
+        content.push({
+          type: 'text',
+          text: `访问链接: ${httpsUrl}`,
+        });
+      } else if (enableHttp) {
+        // 仅HTTP模式
+        content.push({
+          type: 'text',
+          text: `访问链接: ${httpUrl}`,
+        });
+      }
+
       const result = {
-        content: [
-          {
-            type: 'text',
-            text: `${chartType}图表渲染成功！`,
-          },
-          {
-            type: 'text', 
-            text: `生成的图片文件: ${filename}`,
-          },
-          {
-            type: 'text',
-            text: `文件路径: ${outputPath}`,
-          },
-          {
-            type: 'text',
-            text: `文件大小: ${Math.round(buffer.length / 1024)}KB`,
-          },
-          {
-            type: 'text',
-            text: `主要访问URL: ${imageUrl}`,
-          },
-          {
-            type: 'text',
-            text: `HTTPS访问URL: ${httpsUrl}`,
-          },
-          {
-            type: 'text',
-            text: `HTTP访问URL: ${httpUrl}`,
-          },
-          {
-            type: 'text',
-            text: `相对协议URL（推荐HTTPS环境）: ${relativeProtocolUrl}`,
-          },
-          {
-            type: 'text',
-            text: `资源URI: image://${filename}`,
-          },
-          {
-            type: 'text',
-            text: `渲染耗时: ${totalTime}ms`,
-          },
-        ],
+        content: content,
       };
 
       // 缓存结果（限制缓存大小）
@@ -552,14 +552,11 @@ class ChartRenderMCPServer {
         this.chartCache.delete(firstKey);
       }
       
-      // 增强缓存信息，包含多种URL格式
+      // 简化缓存数据
       const cacheData = {
         ...result,
         metadata: {
           filename,
-          outputPath,
-          imageUrl,
-          relativeProtocolUrl,
           fileSize: buffer.length,
           renderTime: totalTime,
           timestamp: Date.now()

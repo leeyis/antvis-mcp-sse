@@ -53,17 +53,17 @@ RUN chown -R node:node /app
 USER node
 
 # 暴露HTTP和HTTPS端口
-EXPOSE 80 443
+EXPOSE 8000 8443
 
 # 设置环境变量
 ENV NODE_ENV=production \
-    HTTP_PORT=80 \
-    HTTPS_PORT=443 \
+    HTTP_PORT=8000 \
+    HTTPS_PORT=8443 \
     ENDPOINT=/message
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:7001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => { process.exit(1) })"
+    CMD node -e "require('http').get('http://localhost:8000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => { process.exit(1) })"
 
 # 启动应用
 CMD ["node", "server.js"] 

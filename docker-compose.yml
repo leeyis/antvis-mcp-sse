@@ -6,15 +6,15 @@ services:
     image: antvis-mcp-sse:latest
     user: "1000:1000"  # 映射到宿主机用户ID
     ports:
-      - "80:80"     # HTTP端口
-      - "443:443"   # HTTPS端口
+      - "8000:8000" # HTTP端口
+      - "8443:8443" # HTTPS端口
     environment:
-      - HTTP_PORT=80
-      - HTTPS_PORT=443
+      - HTTP_PORT=8000
+      - HTTPS_PORT=8443
       - ENDPOINT=/message
       - NODE_ENV=production
       - HOST=192.168.10.187
-      - ENABLE_HTTPS=true             # 启用HTTPS服务器
+      - ENABLE_HTTPS=false            # 启用HTTPS服务器
       - ENABLE_HTTP=true              # 启用HTTP服务器
       - LOG_LEVEL=info
       - IMAGES_DIR=/app/images
@@ -27,7 +27,7 @@ services:
       - ./ssl:/app/ssl              # SSL证书目录挂载（可选）
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
