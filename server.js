@@ -4,9 +4,11 @@ const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
 const { SSEServerTransport } = require('@modelcontextprotocol/sdk/server/sse.js');
 const { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 const { render } = require('@antv/gpt-vis-ssr');
-const fs = require('fs');
+const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const express = require('express');
+const crypto = require('crypto');
 
 class ChartRenderMCPServer {
   constructor() {
@@ -25,12 +27,15 @@ class ChartRenderMCPServer {
 
     // 确保images目录存在
     this.imagesDir = path.join(__dirname, 'images');
-    if (!fs.existsSync(this.imagesDir)) {
-      fs.mkdirSync(this.imagesDir, { recursive: true });
+    if (!fsSync.existsSync(this.imagesDir)) {
+      fsSync.mkdirSync(this.imagesDir, { recursive: true });
     }
 
     // 初始化端口号变量
     this.port = null;
+
+    // 图表缓存
+    this.chartCache = new Map();
 
     // 设置错误处理
     this.setupErrorHandling();
@@ -416,6 +421,7 @@ class ChartRenderMCPServer {
   }
 
   async handleRenderChart(chartType, args) {
+    const startTime = Date.now();
     try {
       this.logInfo(`接收到${chartType}图表渲染请求`);
       
@@ -427,26 +433,44 @@ class ChartRenderMCPServer {
         ...transformedArgs
       };
 
-      this.logInfo('最终图表配置:', JSON.stringify(chartConfig, null, 2));
+      // 生成配置哈希用于缓存
+      const configHash = crypto.createHash('md5').update(JSON.stringify(chartConfig)).digest('hex');
+      const cachedResult = this.chartCache.get(configHash);
+      
+      if (cachedResult) {
+        this.logInfo(`使用缓存图表，哈希: ${configHash}`);
+        const cacheTime = Date.now() - startTime;
+        this.logInfo(`缓存命中，耗时: ${cacheTime}ms`);
+        return cachedResult;
+      }
+
+      // 渲染开始时间
+      const renderStart = Date.now();
+      this.logInfo(`开始渲染图表，配置哈希: ${configHash}`);
 
       // 使用antv/gpt-vis-ssr渲染图表
       const vis = await render(chartConfig);
       const buffer = vis.toBuffer();
+      const renderTime = Date.now() - renderStart;
 
       // 生成唯一文件名
       const timestamp = Date.now();
       const filename = `${chartType}_chart_${timestamp}.png`;
       const outputPath = path.join(this.imagesDir, filename);
 
-      // 保存图片文件
-      fs.writeFileSync(outputPath, buffer);
+      // 异步保存图片文件
+      const fileStart = Date.now();
+      await fs.writeFile(outputPath, buffer);
+      const fileTime = Date.now() - fileStart;
 
-      this.logInfo(`${chartType}图表渲染成功，文件保存至: ${outputPath}`);
+      const totalTime = Date.now() - startTime;
+      this.logInfo(`图表渲染完成 - 渲染:${renderTime}ms, 文件:${fileTime}ms, 总计:${totalTime}ms`);
 
-      // 构建HTTP URL
-      const imageUrl = `http://localhost:${this.port}/images/${filename}`;
+      // 构建HTTP URL（支持外部访问）
+      const host = process.env.HOST || 'localhost';
+      const imageUrl = `http://${host}:${this.port}/images/${filename}`;
 
-      return {
+      const result = {
         content: [
           {
             type: 'text',
@@ -472,8 +496,21 @@ class ChartRenderMCPServer {
             type: 'text',
             text: `资源URI: image://${filename}`,
           },
+          {
+            type: 'text',
+            text: `渲染耗时: ${totalTime}ms`,
+          },
         ],
       };
+
+      // 缓存结果（限制缓存大小）
+      if (this.chartCache.size >= 100) {
+        const firstKey = this.chartCache.keys().next().value;
+        this.chartCache.delete(firstKey);
+      }
+      this.chartCache.set(configHash, result);
+
+      return result;
     } catch (error) {
       this.logError(`${chartType}图表渲染失败`, error);
       
@@ -499,7 +536,14 @@ class ChartRenderMCPServer {
     // SSE endpoint - 建立SSE连接
     app.get('/sse', async (req, res) => {
       try {
-        this.logInfo('建立新的SSE连接');
+        // 记录连接来源信息
+        const clientInfo = {
+          ip: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('User-Agent'),
+          referer: req.get('Referer'),
+          origin: req.get('Origin')
+        };
+        this.logInfo('建立新的SSE连接', clientInfo);
         
         // 创建 SSE transport，让它自己生成会话ID
         const transport = new SSEServerTransport('/messages', res);
