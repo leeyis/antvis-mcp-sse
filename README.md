@@ -12,6 +12,7 @@
 - 🔒 **企业级安全** - 非root用户运行，安全沙箱
 - 📈 **实时监控** - SSE连接状态、性能指标、健康检查
 
+
 ## 🚀 快速开始
 
 ### 一键部署（推荐）
@@ -62,6 +63,16 @@ npm start
 - ✅ 丰富的样式定制选项
 - ✅ 缓存机制提升性能
 - ✅ 返回可外部访问的HTTP URL
+
+### 图表渲染示例
+
+以下是主要图表类型的渲染效果：
+
+| 图表类型 | 渲染效果 | 特点说明 |
+|---------|---------|----------|
+| **线图** | <img src="screenshots/line-chart-example.png" width="200" alt="线图" /> | 清晰展示趋势变化，支持多条线对比 |
+| **柱图** | <img src="screenshots/column-chart-example.png" width="200" alt="柱图" /> | 直观对比数据大小，支持分组和堆叠 |
+| **饼图** | <img src="screenshots/pie-chart-example.png" width="200" alt="饼图" /> | 展示占比关系，支持环形图样式 |
 
 ## ⚙️ 配置说明
 
@@ -294,25 +305,10 @@ docker stats antvis-mcp
 - 可配置图片质量
 - HTTP可访问URL
 
-## 🤝 贡献指南
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
-
-## 🆘 支持
-
-如果您遇到问题或有建议，请：
-
-1. 查看 [FAQ](#故障排除) 部分
-2. 检查 [GitHub Issues](../../issues)
-3. 创建新的 Issue 描述问题
+本项目采用 MIT 许可证 
 
 ---
 
