@@ -271,22 +271,57 @@ class ChartRenderMCPServer {
               type: 'object',
               properties: {
                 data: {
-                  type: 'array',
-                  description: '数据数组，每个元素包含一个数值',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      value: { type: 'number', description: '数值' }
+                  oneOf: [
+                    {
+                      type: 'array',
+                      description: '数据数组，每个元素包含一个数值对象',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          value: { type: 'number', description: '数值' }
+                        },
+                        required: ['value']
+                      }
                     },
-                    required: ['value']
-                  }
+                    {
+                      type: 'array',
+                      description: '数据数组，纯数字数组',
+                      items: {
+                        type: 'number'
+                      }
+                    }
+                  ]
                 },
                 binNumber: { type: 'number', description: '分箱数量，默认为10' },
                 title: { type: 'string', description: '图表标题（可选）' }
               },
               required: ['data']
             }
-          }
+          },
+          {
+            name: 'render_treemap_chart',
+            description: '渲染树状图 - 用于显示层次结构数据的占比关系',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                data: {
+                  type: 'array',
+                  description: '数据数组，每个元素包含类别和数值',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      category: { type: 'string', description: '类别名称' },
+                      value: { type: 'number', description: '对应的数值' },
+                      parent: { type: 'string', description: '父级类别（可选，用于构建层次结构）' }
+                    },
+                    required: ['category', 'value']
+                  }
+                },
+                title: { type: 'string', description: '图表标题（可选）' }
+              },
+              required: ['data']
+            }
+          },
         ],
       };
     });
@@ -312,6 +347,8 @@ class ChartRenderMCPServer {
           return await this.handleRenderChart('dual-axes', args);
         case 'render_histogram_chart':
           return await this.handleRenderChart('histogram', args);
+        case 'render_treemap_chart':
+          return await this.handleRenderChart('treemap', args);
         default:
           throw new Error(`未知的工具: ${name}`);
       }
@@ -398,6 +435,12 @@ class ChartRenderMCPServer {
           case 'pie':
           case 'bar':
           case 'column':
+          case 'treemap':
+               transformedData = labels.map((label, index) => ({
+                  category: label,
+                  value: values[index]
+               }));
+              break;
           default:
                transformedData = labels.map((label, index) => ({
                   category: label,
@@ -428,6 +471,47 @@ class ChartRenderMCPServer {
       this.logInfo(`接收到${chartType}图表渲染请求`);
       
       const transformedArgs = this.transformDataFormat(chartType, args);
+
+      // 处理直方图数据：转换为纯数字数组
+      if (chartType === 'histogram' && Array.isArray(transformedArgs.data)) {
+        this.logInfo('处理直方图数据格式...');
+        const data = transformedArgs.data;
+        
+        // 如果数据是 [{value: number}] 格式，转换为 [number] 格式
+        if (data.length > 0 && typeof data[0] === 'object' && 'value' in data[0]) {
+          transformedArgs.data = data.map(item => item.value);
+          this.logInfo(`已转换直方图数据：${data.length} 个对象 -> ${transformedArgs.data.length} 个数值`);
+        }
+      }
+
+      if (chartType === 'treemap' && Array.isArray(transformedArgs.data) && transformedArgs.data.some(d => d.parent)) {
+        this.logInfo('处理 treemap 层次数据...');
+        const data = transformedArgs.data;
+        
+        // @ant-design/plots Treemap expects 'name' field for stratify layout.
+        const treemapData = data.map(item => ({
+          name: item.category,
+          parent: item.parent,
+          value: item.value,
+        }));
+
+        // Check for and add the root node if it's missing from the dataset
+        const nodeNames = new Set(treemapData.map(d => d.name));
+        const rootNodes = treemapData.map(d => d.parent).filter(p => p && !nodeNames.has(p));
+        const uniqueRootNodes = [...new Set(rootNodes)];
+
+        uniqueRootNodes.forEach(rootName => {
+            this.logInfo(`检测到缺失的根节点 '${rootName}'，正在添加...`);
+            treemapData.push({ name: rootName, parent: null, value: undefined });
+        });
+
+        transformedArgs.data = treemapData;
+        
+        // Ensure color mapping is based on top-level parents for better visuals
+        if (!('colorField' in transformedArgs)) {
+            transformedArgs.colorField = 'name';
+        }
+      }
 
       // 构建标准的图表配置
       const chartConfig = {

@@ -1,10 +1,11 @@
 # AntVis MCP SSE - 专业图表渲染服务器
 
-这是一个基于 Model Context Protocol (MCP) 的**专业图表渲染服务器**，支持 8 种图表类型，具备外部访问能力、性能优化和Docker容器化部署。
+这是一个基于 Model Context Protocol (MCP) 的**专业图表渲染服务器**，支持 9 种图表类型，具备外部访问能力、性能优化和Docker容器化部署。
+
 
 ## ✨ 核心特性
 
-- 🎯 **8种专用图表工具** - 线图、柱图、条图、饼图、面积图、散点图、双轴图、直方图
+- 🎯 **9种专用图表工具** - 线图、柱图、条图、饼图、面积图、散点图、双轴图、直方图、树状图
 - 🌐 **外部访问支持** - 可配置主机名/IP，支持跨机器访问
 - ⚡ **性能优化** - 图表缓存、异步渲染、时间监控
 - 🐳 **一键部署** - 简化的Docker Compose部署，所有配置集中管理
@@ -12,6 +13,21 @@
 - 🔒 **企业级安全** - 非root用户运行，安全沙箱
 - 📈 **实时监控** - SSE连接状态、性能指标、健康检查
 
+## 🎨 图表类型展示
+
+以下是主要图表类型的渲染效果：
+
+| 图表类型 | 渲染效果 | 特点说明 |
+|---------|---------|----------|
+| **线图** | <img src="screenshots/line_chart.png" width="200" alt="线图" /> | 清晰展示趋势变化，支持多条线对比 |
+| **柱图** | <img src="screenshots/column_chart.png" width="200" alt="柱图" /> | 直观对比数据大小，支持分组和堆叠 |
+| **条图** | <img src="screenshots/bar_chart.png" width="200" alt="条图" /> | 水平对比，适合长标签数据 |
+| **饼图** | <img src="screenshots/pie_chart.png" width="200" alt="饼图" /> | 展示占比关系，支持环形图样式 |
+| **面积图** | <img src="screenshots/area_chart.png" width="200" alt="面积图" /> | 展示累积数据趋势和填充效果 |
+| **散点图** | <img src="screenshots/scatter_chart.png" width="200" alt="散点图" /> | 显示变量间相关性和数据分布 |
+| **双轴图** | <img src="screenshots/dual-axes_chart.png" width="200" alt="双轴图" /> | 对比不同量级的数据系列 |
+| **直方图** | <img src="screenshots/histogram_chart.png" width="200" alt="直方图" /> | 显示数据分布和频率统计 |
+| **树状图** | <img src="screenshots/treemap_chart.png" width="200" alt="树状图" /> | 层次数据占比可视化 |
 
 ## 🚀 快速开始
 
@@ -64,22 +80,13 @@ npm start
 | `render_scatter_chart` | 散点图 | 相关性分析、分布研究 |
 | `render_dual_axes_chart` | 双轴图 | 不同量级数据对比 |
 | `render_histogram_chart` | 直方图 | 数据分布、频率分析 |
+| `render_treemap_chart` | 树状图 | 层次数据占比、文件系统可视化 |
 
 每个工具都支持：
 - ✅ 完整的数据验证和错误处理
 - ✅ 丰富的样式定制选项
 - ✅ 缓存机制提升性能
 - ✅ 返回可外部访问的HTTP URL
-
-### 图表渲染示例
-
-以下是主要图表类型的渲染效果：
-
-| 图表类型 | 渲染效果 | 特点说明 |
-|---------|---------|----------|
-| **线图** | <img src="screenshots/line-chart-example.png" width="200" alt="线图" /> | 清晰展示趋势变化，支持多条线对比 |
-| **柱图** | <img src="screenshots/column-chart-example.png" width="200" alt="柱图" /> | 直观对比数据大小，支持分组和堆叠 |
-| **饼图** | <img src="screenshots/pie-chart-example.png" width="200" alt="饼图" /> | 展示占比关系，支持环形图样式 |
 
 ## ⚙️ 配置说明
 
@@ -196,308 +203,43 @@ antvis-mcp-sse/
 ├── docker-compose.yml     # 容器编排配置
 ├── package.json           # 项目依赖
 ├── README.md              # 项目文档
+├── screenshots/           # 图表示例截图
 ├── .dockerignore          # Docker构建忽略
 ├── .gitignore             # Git忽略配置
-└── images/                # 图片存储目录
 ```
 
-## 🔧 工具使用示例
+## 🔧 技术细节
 
-### 基础饼图
+### 核心依赖
 
-```json
-{
-  "name": "render_pie_chart",
-  "arguments": {
-    "title": "销售占比分析",
-    "data": [
-      {"category": "产品A", "value": 30},
-      {"category": "产品B", "value": 25},
-      {"category": "产品C", "value": 45}
-    ],
-    "config": {
-      "angleField": "value",
-      "colorField": "category"
-    }
-  }
-}
-```
+- **[@antv/gpt-vis-ssr](https://github.com/antvis/GPT-Vis)**: 核心图表渲染引擎
+- **@modelcontextprotocol/sdk**: MCP协议支持
+- **Express**: HTTP服务器框架
 
-**返回示例：**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "pie图表渲染成功！"
-    },
-    {
-      "type": "text", 
-      "text": "文件大小: 110KB"
-    },
-    {
-      "type": "text",
-      "text": "渲染耗时: 1250ms"
-    },
-    {
-      "type": "text",
-      "text": "访问链接: http://192.168.10.187:8000/images/pie_chart_1234567890.png"
-    }
-  ]
-}
-```
+### 数据处理增强
 
-**双协议模式返回示例：**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "pie图表渲染成功！"
-    },
-    {
-      "type": "text",
-      "text": "文件大小: 110KB"
-    },
-    {
-      "type": "text", 
-      "text": "渲染耗时: 1250ms"
-    },
-    {
-      "type": "text",
-      "text": "HTTPS访问: https://192.168.10.187:8443/images/pie_chart_1234567890.png"
-    },
-    {
-      "type": "text",
-      "text": "HTTP访问: http://192.168.10.187:8000/images/pie_chart_1234567890.png"
-    }
-  ]
-}
-```
+本项目在原 GPT-Vis-SSR 基础上增加了以下优化：
 
-**URL访问格式说明：**
-- **HTTPS（推荐）**: `https://YOUR_IP:8443/images/图片名.png`
-- **HTTP**: `http://YOUR_IP:8000/images/图片名.png`
+1. **数据格式兼容性**: 支持多种输入数据格式的自动转换
+2. **直方图优化**: 自动转换 `[{value: number}]` 格式为 `[number]` 格式
+3. **树状图增强**: 自动处理层次结构，添加缺失的根节点
+4. **Chart.js兼容**: 支持类似Chart.js的数据格式输入
 
-### 高级双轴图
+### 性能优化
 
-```json
-{
-  "name": "render_dual_axes_chart",
-  "arguments": {
-    "title": "销售额与利润率对比",
-    "data": [
-      {"month": "1月", "sales": 1000, "profit_rate": 15},
-      {"month": "2月", "sales": 1200, "profit_rate": 18}
-    ],
-    "config": {
-      "xField": "month",
-      "yField": ["sales", "profit_rate"],
-      "geometryOptions": [
-        {"geometry": "column", "color": "#5B8FF9"},
-        {"geometry": "line", "color": "#5AD8A6"}
-      ]
-    }
-  }
-}
-```
-
-## 📈 性能特性
-
-### 智能缓存系统
-- 基于配置哈希的图表缓存
-- 最大缓存100个图表，自动清理
-- 缓存命中可减少90%的渲染时间
-
-### 异步渲染引擎
-- 非阻塞图表生成
-- 并发处理多个渲染请求
-- 实时性能监控和日志
-
-### 监控指标
-- 渲染时间统计
-- 缓存命中率
-- SSE连接状态
-- 系统资源使用
-
-## 🐳 Docker 部署
-
-### 构建镜像
-
-```bash
-# 标准构建
-docker build -t antvis-chart-sse:latest .
-
-# 无缓存构建
-docker build --no-cache -t antvis-chart-sse:latest .
-```
-
-### 容器管理
-
-```bash
-# 启动服务
-docker compose up -d
-
-# 查看日志
-docker compose logs -f antvis-mcp
-
-# 停止服务
-docker compose down
-
-# 重启服务
-docker compose restart
-```
-
-### 健康检查
-
-容器自带健康检查，访问 `/health` 端点：
-
-```bash
-# HTTPS访问（推荐）
-curl -k https://YOUR_IP:8443/health
-
-# HTTP访问  
-curl http://YOUR_IP:8000/health
-
-# 预期返回: {"status":"ok","timestamp":"2024-12-25T10:30:00.000Z"}
-```
-
-## 🛠️ 故障排除
-
-### 常见问题
-
-**1. 图片URL无法访问**
-```bash
-# 检查HOST环境变量设置
-docker compose exec antvis-mcp env | grep HOST
-
-# 确认防火墙端口开放
-sudo ufw allow 8000   # HTTP端口
-sudo ufw allow 8443   # HTTPS端口
-
-# 验证服务状态
-curl -k https://YOUR_IP:8443/health   # HTTPS
-curl http://YOUR_IP:8000/health       # HTTP
-```
-
-**2. 容器启动失败**
-```bash
-# 查看详细日志
-docker compose logs antvis-mcp
-
-# 检查端口占用
-netstat -tulpn | grep 8000    # HTTP端口
-netstat -tulpn | grep 8443    # HTTPS端口
-
-# 检查容器状态
-docker compose ps
-```
-
-**3. 图表渲染缓慢**
-```bash
-# 查看缓存命中率
-docker compose logs antvis-mcp | grep "缓存"
-
-# 监控容器资源
-docker stats antvis-mcp
-```
-
-**4. SSE连接频繁断开**
-```bash
-# 这是正常现象，IDE会自动重连
-# 可通过日志级别控制详细程度
-# 在docker-compose.yml中设置: LOG_LEVEL=warn
-```
-
-**5. Docker Compose相关问题**
-```bash
-# 检查compose文件语法
-docker compose config
-
-# 验证compose文件并显示最终配置
-docker compose config --services
-
-# 重新构建并启动（强制重建）
-docker compose up -d --build
-
-# 完全清理并重启
-docker compose down -v
-docker compose up -d
-
-# 查看所有容器状态
-docker compose ps -a
-
-# 查看特定服务的详细信息
-docker compose logs antvis-mcp --tail 50
-```
-
-**6. 混合内容问题（HTTPS环境）**
-```bash
-# 问题现象：HTTPS页面无法加载HTTP图片
-# 解决方案1：使用相对协议URL（推荐）
-# 在浏览器控制台检查是否有混合内容错误
-
-# 解决方案2：配置HTTPS协议
-# 修改docker-compose.yml中的PROTOCOL=https
-
-# 验证协议配置
-docker compose exec antvis-mcp env | grep PROTOCOL
-```
-
-### 性能优化建议
-
-**生产环境**
-- 使用SSD存储提升图片写入速度
-- 配置Nginx反向代理进行负载均衡
-- 设置适当的容器资源限制
-- 定期清理历史图片文件
-
-**开发环境**
-- 使用本地volume挂载加速开发
-- 启用详细日志便于调试
-- 配置热重载便于代码修改
-
-## 📚 API 文档
-
-### MCP 标准接口
-
-本服务完全兼容 MCP (Model Context Protocol) 标准：
-
-- **工具发现**: 自动注册8个图表渲染工具
-- **参数验证**: 严格的JSON Schema验证
-- **错误处理**: 标准化错误响应格式
-- **SSE通信**: 实时双向通信支持
-
-### 数据格式支持
-
-**输入数据格式**
-- JSON数组格式
-- Chart.js兼容格式
-- 自动数据类型转换
-
-**输出格式**
-- PNG图片文件
-- 可配置图片质量
-- HTTP可访问URL
-
+- **图表缓存**: MD5哈希缓存机制，避免重复渲染
+- **异步处理**: 非阻塞图表生成和文件保存
+- **连接池**: 高效的SSE连接管理
+- **智能端口**: 自动选择最优协议和端口
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 
+MIT License
+
+## 🙏 致谢
+
+特别感谢 [AntV 团队](https://github.com/antvis) 开发的 [GPT-Vis-SSR](https://github.com/antvis/GPT-Vis) 项目，为数据可视化领域提供了优秀的服务端渲染解决方案。本项目仅在其基础上进行了部署优化和协议封装，核心渲染能力完全依赖于原项目的卓越技术实现。
 
 ---
 
-**快速开始命令总结：**
-
-```bash
-# 完整部署流程
-git clone <repository-url> && cd antvis-mcp-sse
-# 编辑 docker-compose.yml 中的 HOST 为您的实际IP地址
-docker build -t antvis-chart-sse:latest .
-docker compose up -d
-# 验证服务状态
-curl http://YOUR_IP:7001/health
-docker compose ps antvis-mcp
-```
-
-🎉 现在您可以通过MCP客户端使用8个强大的图表渲染工具了！ 
+🌟 **如果这个项目对您有帮助，欢迎点个星！** 

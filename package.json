@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@antv/gpt-vis-ssr": "^0.1.6",
+    "@antv/gpt-vis": "^0.4.7",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "express": "^5.1.0"
   },
